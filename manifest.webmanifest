@@ -1,0 +1,37 @@
+{
+  "name": "Notlarım Pro",
+  "short_name": "Notlarım",
+  "description": "Not, görev ve hatırlatma uygulaması",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FBF9F3",
+  "theme_color": "#3E7D4C",
+  "orientation": "portrait",
+  "lang": "tr",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Yeni Not",
+      "short_name": "Yeni Not",
+      "description": "Doğrudan yeni not ekleme ekranını aç",
+      "url": "./index.html?action=yeni-not",
+      "icons": [
+        { "src": "icons/shortcut-new.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

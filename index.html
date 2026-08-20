@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Notlarım Pro</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3E7D4C">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Notlarım">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+  :root{
+    --paper:#FBF9F3;
+    --paper-line:#E4E0D2;
+    --ink:#2B2B24;
+    --ink-dim:#6E6B5E;
+    --green:#3E7D4C;
+    --green-deep:#2C5B38;
+    --green-tint:#E4EFE2;
+    --red:#B3492F;
+    --amber:#B8842B;
+    --card:#FFFFFF;
+    --shadow: 0 1px 2px rgba(43,43,36,.06), 0 6px 16px rgba(43,43,36,.05);
+    --radius: 14px;
+    font-size: 16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#1C1D18;
+      --paper-line:#33352C;
+      --ink:#EDEAE0;
+      --ink-dim:#9C9A8C;
+      --green:#5FA36F;
+      --green-deep:#8FC79B;
+      --green-tint:#243425;
+      --red:#D9765D;
+      --amber:#D6A84F;
+      --card:#242520;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family: "Iowan Old Style","Georgia","Palatino Linotype",serif;
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 38px, var(--paper-line) 38px 39px),
+      var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    max-width:560px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    background:transparent;
+  }
+
+  /* ---- Header ---- */
+  header{
+    padding:22px 20px 14px;
+    position:sticky; top:0; z-index:5;
+    background:linear-gradient(var(--paper) 82%, transparent);
+  }
+  .brand{
+    display:flex; align-items:baseline; justify-content:space-between;
+    gap:10px;
+  }
+  .brand h1{
+    font-family:"Iowan Old Style","Georgia",serif;
+    font-weight:700; font-size:1.9rem; margin:0;
+    letter-spacing:.2px;
+    color:var(--green-deep);
+  }
+  .brand h1 .dot{color:var(--red); font-size:1.1em; line-height:0;}
+  .today{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-dim); font-weight:600;
+  }
+  .stats-row{
+    display:flex; gap:8px; margin-top:14px;
+  }
+  .stat{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    flex:1; background:var(--green-tint); border-radius:12px;
+    padding:8px 10px; text-align:center;
+  }
+  .stat b{display:block; font-size:1.15rem; color:var(--green-deep); font-weight:800;}
+  .stat span{font-size:.68rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.05em;}
+
+  nav.tabs{
+    display:flex; gap:6px; margin-top:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  nav.tabs button{
+    flex:1; border:none; background:transparent; padding:9px 4px;
+    font-size:.82rem; font-weight:600; color:var(--ink-dim);
+    border-bottom:2px solid var(--paper-line); cursor:pointer;
+    transition:color .15s, border-color .15s;
+  }
+  nav.tabs button.active{color:var(--green-deep); border-color:var(--green);}
+
+  /* ---- Main scroll area ---- */
+  main{flex:1; padding:6px 20px 100px; overflow-y:auto;}
+
+  .quick{
+    display:flex; gap:8px; margin:8px 0 16px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .quick input{
+    flex:1; border:1px solid var(--paper-line); background:var(--card);
+    border-radius:12px; padding:11px 14px; font-size:.92rem; color:var(--ink);
+    box-shadow: var(--shadow);
+  }
+  .quick input:focus{outline:2px solid var(--green); outline-offset:1px;}
+  .quick button{
+    width:42px; border:none; border-radius:12px; background:var(--green);
+    color:#fff; font-size:1.3rem; cursor:pointer; box-shadow:var(--shadow);
+  }
+  .quick button:active{transform:scale(.96);}
+
+  .empty{
+    text-align:center; color:var(--ink-dim); padding:60px 20px;
+    font-size:.95rem; line-height:1.6;
+  }
+  .empty .glyph{font-size:2.2rem; display:block; margin-bottom:10px; color:var(--green);}
+
+  /* ---- Note card ---- */
+  .note{
+    background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:12px 14px; margin-bottom:10px; display:flex; gap:10px;
+    border-left:4px solid var(--accent, var(--green));
+    position:relative; animation:rise .25s ease both;
+  }
+  @keyframes rise{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .note.done{opacity:.5;}
+  .note.done .note-title{text-decoration:line-through;}
+
+  .check{
+    width:22px; height:22px; border-radius:7px; border:2px solid var(--accent, var(--green));
+    flex:none; margin-top:2px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    background:#fff; transition:background .15s;
+  }
+  .check.on{background:var(--accent, var(--green));}
+  .check.on::after{content:"✓"; color:#fff; font-size:13px; font-weight:800;}
+
+  .note-body{flex:1; min-width:0; cursor:pointer;}
+  .note-title{font-weight:700; font-size:1.02rem; margin:0 0 2px; word-break:break-word;}
+  .note-content{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:.83rem; color:var(--ink-dim); margin:0 0 6px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .badges{display:flex; flex-wrap:wrap; gap:5px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+  .badge{
+    font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:color-mix(in srgb, var(--accent, var(--green)) 12%, white);
+    color:var(--accent, var(--green));
+  }
+  .card-actions{
+    position:absolute; top:8px; right:8px; display:flex; align-items:center; gap:2px;
+  }
+  .del-btn, .pin-btn{
+    border:none; background:transparent;
+    color:var(--ink-dim); font-size:1rem; cursor:pointer; padding:4px;
+    opacity:.5;
+  }
+  .del-btn:hover{opacity:1; color:var(--red);}
+  .pin-btn:hover{opacity:1; color:var(--amber);}
+  .pin-btn.active{ opacity:1; color:var(--amber); }
+  .note.pinned{ border-top:2px solid var(--amber); }
+  mark{ background:rgba(184,132,43,.3); color:inherit; border-radius:3px; padding:0 1px; }
+
+  /* ---- Search ---- */
+  .search-box{
+    display:flex; align-items:center; gap:8px; background:var(--card);
+    border:1px solid var(--paper-line); border-radius:12px; padding:10px 14px;
+    margin-bottom:16px; box-shadow:var(--shadow);
+  }
+  .search-box input{border:none; outline:none; flex:1; font-size:.95rem; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:transparent;}
+
+  /* ---- Calendar ---- */
+  .cal{
+    background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px; margin-bottom:16px;
+  }
+  .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+  .cal-head b{color:var(--green-deep); font-size:1rem; text-transform:capitalize;}
+  .cal-head button{border:none; background:var(--green-tint); color:var(--green-deep); width:30px; height:30px; border-radius:8px; font-size:1rem; cursor:pointer;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+  .cal-grid .dow{font-size:.65rem; text-align:center; color:var(--ink-dim); font-weight:700; padding-bottom:4px; text-transform:uppercase;}
+  .cal-day{
+    aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius:9px; font-size:.8rem; cursor:pointer; position:relative; color:var(--ink);
+  }
+  .cal-day.other{color:var(--paper-line);}
+  .cal-day.today{font-weight:800; color:var(--green-deep); box-shadow:inset 0 0 0 1.5px var(--green);}
+  .cal-day.sel{background:var(--green); color:#fff;}
+  .cal-dots{display:flex; gap:2px; position:absolute; bottom:3px;}
+  .cal-dots span{width:4px; height:4px; border-radius:50%;}
+
+  /* ---- FAB ---- */
+  .fab{
+    position:fixed; right:20px;
+    bottom:24px; width:56px; height:56px; border-radius:50%;
+    background:var(--green); color:#fff; border:none; font-size:1.6rem;
+    box-shadow:0 8px 20px rgba(62,125,76,.4); cursor:pointer; z-index:8;
+  }
+  @media (min-width:560px){ .fab{ right:calc(50% - 260px); } }
+  .fab:active{transform:scale(.94);}
+
+  /* ---- Modal / editor ---- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(43,43,36,.42); z-index:20;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    background:var(--paper); width:100%; max-width:560px; max-height:92vh; overflow-y:auto;
+    border-radius:22px 22px 0 0; padding:18px 20px 30px; animation:up .22s ease both;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  @keyframes up{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .sheet-head h2{font-family:"Iowan Old Style","Georgia",serif; font-size:1.3rem; margin:0; color:var(--green-deep);}
+  .sheet-head button{border:none; background:var(--green-tint); color:var(--green-deep); width:34px; height:34px; border-radius:10px; font-size:1.2rem; cursor:pointer;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); margin-bottom:5px;}
+  .field input[type=text], .field textarea, .field select{
+    width:100%; border:1px solid var(--paper-line); background:var(--card); border-radius:10px;
+    padding:10px 12px; font-size:.95rem; font-family:inherit; color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .row2{display:flex; gap:10px;}
+  .row2 .field{flex:1;}
+
+  .color-row{display:flex; gap:9px; flex-wrap:wrap;}
+  .swatch{width:30px; height:30px; border-radius:50%; cursor:pointer; border:2px solid transparent; display:flex; align-items:center; justify-content:center; color:#fff; font-size:.85rem;}
+  .swatch.sel{border-color:var(--ink);}
+
+  .prio-row{display:flex; gap:8px;}
+  .prio-row button{
+    flex:1; padding:9px 4px; border-radius:10px; border:1.5px solid var(--paper-line);
+    background:var(--card); font-size:.82rem; font-weight:600; cursor:pointer; color:var(--ink-dim);
+  }
+  .prio-row button.sel{border-color:currentColor;}
+  .prio-row button[data-p="0"].sel{color:#6E6B5E; background:#EFEEE8;}
+  .prio-row button[data-p="1"].sel{color:var(--amber); background:#FBF1DE;}
+  .prio-row button[data-p="2"].sel{color:var(--red); background:#FBE7E1;}
+
+  .times{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+  .time-chip{background:var(--green-tint); color:var(--green-deep); font-size:.78rem; font-weight:700; padding:5px 9px; border-radius:20px; display:flex; align-items:center; gap:6px;}
+  .time-chip button{border:none; background:transparent; color:inherit; cursor:pointer; font-size:.85rem;}
+  .add-time{border:1px dashed var(--green); background:transparent; color:var(--green-deep); border-radius:20px; padding:5px 12px; font-size:.78rem; font-weight:700; cursor:pointer;}
+
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:6px 0;}
+  .switch{width:44px; height:26px; border-radius:20px; background:var(--paper-line); position:relative; cursor:pointer; flex:none; transition:background .15s;}
+  .switch.on{background:var(--green);}
+  .switch::after{content:""; width:20px; height:20px; border-radius:50%; background:#fff; position:absolute; top:3px; left:3px; transition:left .15s; box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .switch.on::after{left:21px;}
+
+  .save-btn{
+    width:100%; background:var(--green); color:#fff; border:none; border-radius:14px;
+    padding:14px; font-size:1rem; font-weight:700; cursor:pointer; margin-top:6px;
+    box-shadow:0 6px 16px rgba(62,125,76,.35);
+  }
+
+  .advanced-toggle{
+    width:100%; background:transparent; border:1px dashed var(--paper-line); color:var(--ink-dim);
+    border-radius:12px; padding:10px; font-size:.85rem; font-weight:700; cursor:pointer;
+    margin:2px 0 14px; display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .advanced-toggle.open{color:var(--green-deep); border-color:var(--green);}
+
+  .subtask-row{
+    display:flex; align-items:center; gap:8px; padding:6px 0;
+    border-bottom:1px solid var(--paper-line);
+  }
+  .subtask-row:last-child{border-bottom:none;}
+  .subtask-check{
+    width:19px; height:19px; border-radius:6px; border:2px solid var(--green); flex:none;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; background:var(--card);
+  }
+  .subtask-check.on{background:var(--green);}
+  .subtask-check.on::after{content:"✓"; color:#fff; font-size:11px; font-weight:800;}
+  .subtask-row span{flex:1; font-size:.88rem;}
+  .subtask-row.done span{text-decoration:line-through; color:var(--ink-dim);}
+  .subtask-row button{border:none; background:transparent; color:var(--ink-dim); font-size:.9rem; cursor:pointer; padding:2px 6px;}
+  .subtask-row button:hover{color:var(--red);}
+
+  .subtask-progress{
+    font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:var(--green-tint); color:var(--green-deep);
+  }
+  .streak-badge{
+    font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:20px;
+    background:#FBF1DE; color:var(--amber);
+  }
+
+  .prio-dot{ width:10px; height:10px; border-radius:50%; flex:none; margin-top:7px; }
+  .icon{ width:16px; height:16px; flex:none; }
+  .sheet-head button .icon, .del-btn .icon{ width:15px; height:15px; }
+  .search-box .icon{ width:17px; height:17px; color:var(--ink-dim); }
+
+  .filter-bar{
+    display:flex; align-items:center; gap:8px; margin:2px 0 14px; flex-wrap:wrap;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .mini-select{
+    border:1px solid var(--paper-line); background:var(--card); color:var(--ink);
+    border-radius:9px; padding:6px 8px; font-size:.76rem; font-weight:600;
+  }
+  .chip-group{ display:flex; gap:5px; flex:1; }
+  .chip{
+    border:1px solid var(--paper-line); background:var(--card); color:var(--ink-dim);
+    border-radius:20px; padding:6px 11px; font-size:.76rem; font-weight:700; cursor:pointer;
+  }
+  .chip.active{ background:var(--green); border-color:var(--green); color:#fff; }
+  .select-toggle-btn{
+    border:1px solid var(--green); background:transparent; color:var(--green-deep);
+    border-radius:9px; padding:6px 10px; font-size:.76rem; font-weight:700; cursor:pointer;
+  }
+  .select-toggle-btn.active{ background:var(--green); color:#fff; }
+
+  .select-check{
+    display:none; width:22px; height:22px; border-radius:6px; border:2px solid var(--paper-line);
+    background:var(--card); flex:none; margin-top:2px; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .select-check.on{ background:var(--green); border-color:var(--green); }
+  .select-check.on::after{ content:"✓"; color:#fff; font-size:13px; font-weight:800; }
+  .list-select-active .select-check{ display:flex; }
+  .list-select-active .check{ display:none; }
+  .list-select-active .card-actions{ display:none; }
+  .list-select-active .prio-dot{ display:none; }
+
+  .bulk-bar{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:24px;
+    background:var(--ink); color:var(--paper); border-radius:16px; padding:10px 8px 10px 16px;
+    display:none; align-items:center; gap:6px; box-shadow:0 8px 24px rgba(0,0,0,.3); z-index:15;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.82rem; max-width:92vw;
+  }
+  .bulk-bar.show{ display:flex; }
+  .bulk-bar span{ font-weight:700; white-space:nowrap; margin-right:4px; }
+  .bulk-bar button{ border:none; background:transparent; color:var(--green); font-weight:700; cursor:pointer; font-size:.82rem; padding:8px 10px; white-space:nowrap; }
+  .bulk-bar button.danger{ color:var(--red); }
+
+  .field.invalid input, .field.invalid textarea{ border-color:var(--red); animation:shake .3s; }
+  .field-error{ color:var(--red); font-size:.74rem; font-weight:600; margin-top:4px; display:none; }
+  .field.invalid .field-error{ display:block; }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+  .del-note-btn{
+    width:100%; background:transparent; color:var(--red); border:1.5px solid #F0D9D2; border-radius:14px;
+    padding:12px; font-size:.9rem; font-weight:700; cursor:pointer; margin-top:10px;
+  }
+
+  .toast{
+    position:fixed; bottom:96px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--paper); padding:9px 10px 9px 18px; border-radius:20px;
+    font-size:.82rem; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:30;
+    display:flex; align-items:center; gap:10px; max-width:88vw;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px); pointer-events:auto;}
+  .toast button{
+    border:none; background:transparent; color:var(--green); font-weight:800; font-size:.82rem;
+    cursor:pointer; padding:4px 8px; white-space:nowrap;
+  }
+
+  ::-webkit-scrollbar{width:0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <h1>Notlarım<span class="dot">.</span></h1>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="today" id="todayLabel"></div>
+        <button id="settingsBtn" aria-label="Ayarlar" style="border:none; background:var(--green-tint); color:var(--green-deep); width:30px; height:30px; border-radius:9px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px; height:17px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat"><b id="statTotal">0</b><span>Bugün</span></div>
+      <div class="stat"><b id="statDone">0</b><span>Bitti</span></div>
+      <div class="stat"><b id="statAll">0</b><span>Toplam Not</span></div>
+    </div>
+    <nav class="tabs">
+      <button data-tab="home" class="active">Bugün</button>
+      <button data-tab="calendar">Takvim</button>
+      <button data-tab="search">Ara</button>
+    </nav>
+  </header>
+
+  <div id="offlineBar" style="display:none; background:var(--paper-line); color:var(--ink-dim); text-align:center; font-size:.72rem; padding:6px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-weight:600;">Çevrimdışı — notlar bu cihazda saklanıyor</div>
+
+  <main>
+    <!-- HOME -->
+    <section id="tab-home">
+      <div class="quick">
+        <input id="quickInput" type="text" placeholder="Hızlı not ekle…">
+        <button id="quickAdd">＋</button>
+      </div>
+      <div class="filter-bar">
+        <select id="homeSortSelect" class="mini-select">
+          <option value="saat">Saate göre</option>
+          <option value="oncelik">Önceliğe göre</option>
+          <option value="alfabetik">A - Z</option>
+        </select>
+        <div class="chip-group" id="homeStatusChips">
+          <button type="button" class="chip active" data-status="tumu">Tümü</button>
+          <button type="button" class="chip" data-status="bekleyen">Bekleyen</button>
+          <button type="button" class="chip" data-status="tamamlanan">Tamamlanan</button>
+        </div>
+        <button type="button" class="select-toggle-btn" id="homeSelectToggle">Seç</button>
+      </div>
+      <div id="dayTitle" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-weight:700; color:var(--green-deep); margin:2px 0 12px; font-size:.95rem;"></div>
+      <div id="homeList"></div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section id="tab-calendar" style="display:none;">
+      <div class="cal">
+        <div class="cal-head">
+          <button id="calPrev">‹</button>
+          <b id="calMonthLabel"></b>
+          <button id="calNext">›</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+      <div id="calDayTitle" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-weight:700; color:var(--green-deep); margin:2px 0 12px; font-size:.95rem;"></div>
+      <div id="calList"></div>
+    </section>
+
+    <!-- SEARCH -->
+    <section id="tab-search" style="display:none;">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="searchInput" type="text" placeholder="Başlık, içerik veya etiket ara…">
+      </div>
+      <div class="filter-bar" id="searchFilterBar" style="display:none;">
+        <div class="chip-group" id="searchStatusChips">
+          <button type="button" class="chip active" data-status="tumu">Tümü</button>
+          <button type="button" class="chip" data-status="bekleyen">Bekleyen</button>
+          <button type="button" class="chip" data-status="tamamlanan">Tamamlanan</button>
+        </div>
+        <button type="button" class="select-toggle-btn" id="searchSelectToggle">Seç</button>
+      </div>
+      <div id="searchList"></div>
+    </section>
+  </main>
+
+  <div class="bulk-bar" id="bulkBar">
+    <span id="bulkCount">0 seçili</span>
+    <button type="button" id="bulkComplete">Tamamlandı</button>
+    <button type="button" id="bulkDelete" class="danger">Sil</button>
+    <button type="button" id="bulkCancel">İptal</button>
+  </div>
+
+  <button class="fab" id="fabAdd">＋</button>
+</div>
+
+<!-- Editor sheet -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">Yeni Not</h2>
+      <button id="sheetClose"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+
+    <div class="field" id="fBaslikField">
+      <label>Başlık</label>
+      <input type="text" id="fBaslik" placeholder="Örn. Süt al">
+      <div class="field-error">Başlık boş olamaz.</div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Tarih</label>
+        <input type="date" id="fTarih">
+      </div>
+      <div class="field">
+        <label>Saat <span style="font-weight:400; color:var(--ink-dim);">(opsiyonel)</span></label>
+        <input type="time" id="fSaat">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Alt görevler <span style="font-weight:400; color:var(--ink-dim);">(opsiyonel)</span></label>
+      <div id="subtaskList"></div>
+      <div style="display:flex; gap:8px; margin-top:4px;">
+        <input type="text" id="newSubtaskInput" placeholder="Alt görev yazıp Enter'a basın">
+        <button type="button" class="add-time" id="addSubtaskBtn">＋</button>
+      </div>
+    </div>
+
+    <button type="button" id="advancedToggle" class="advanced-toggle">
+      <span id="advancedToggleLabel">Daha fazla seçenek</span> <span id="advancedToggleChevron">▾</span>
+    </button>
+
+    <div id="advancedSection" style="display:none;">
+      <div class="field">
+        <label>İçerik</label>
+        <textarea id="fIcerik" placeholder="Detaylar (opsiyonel)"></textarea>
+      </div>
+      <div class="field">
+        <label>Tekrar</label>
+        <select id="fTekrar">
+          <option value="yok">Yok</option>
+          <option value="gunluk">Günlük</option>
+          <option value="haftalik">Haftalık</option>
+          <option value="aylik">Aylık</option>
+          <option value="ozel">Özel Saatler</option>
+        </select>
+      </div>
+      <div class="field" id="ozelSaatlerField" style="display:none;">
+        <label>Özel hatırlatma saatleri</label>
+        <div class="times" id="ozelSaatlerList"></div>
+        <div style="display:flex; gap:8px;">
+          <input type="time" id="newTimeInput" style="flex:1; border:1px solid var(--paper-line); background:var(--card); border-radius:10px; padding:9px 10px; font-size:.9rem; color:var(--ink);">
+          <button type="button" class="add-time" id="addTimeBtn">＋ Ekle</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Renk</label>
+        <div class="color-row" id="colorRow"></div>
+      </div>
+      <div class="field">
+        <label>Öncelik</label>
+        <div class="prio-row" id="prioRow">
+          <button type="button" data-p="0">Düşük</button>
+          <button type="button" data-p="1">Orta</button>
+          <button type="button" data-p="2">Yüksek</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Etiketler</label>
+        <input type="text" id="fEtiket" placeholder="iş, ev, alışveriş — metinde #etiket de yazabilirsiniz">
+      </div>
+      <div class="toggle-row">
+        <span style="font-weight:700; font-size:.9rem;">Sabitlenmiş</span>
+        <div class="switch" id="fSabit"></div>
+      </div>
+      <div class="toggle-row">
+        <span style="font-weight:700; font-size:.9rem;">Tamamlandı</span>
+        <div class="switch" id="fTamamlandi"></div>
+      </div>
+    </div>
+
+    <button class="save-btn" id="saveBtn">Kaydet</button>
+    <button class="del-note-btn" id="deleteBtn" style="display:none;">Notu Sil</button>
+  </div>
+</div>
+
+<!-- Settings sheet -->
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>Ayarlar</h2>
+      <button id="settingsClose"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+
+    <div class="field">
+      <label>Bildirimler</label>
+      <div class="toggle-row" style="background:var(--card); border:1px solid var(--paper-line); border-radius:10px; padding:12px;">
+        <span style="font-size:.9rem; max-width:74%;">Saati gelen notlar için tarayıcı bildirimi göster (uygulama açıkken çalışır)</span>
+        <div class="switch" id="notifSwitch"></div>
+      </div>
+      <p id="notifStatus" style="font-size:.78rem; color:var(--ink-dim); margin:8px 2px 0;"></p>
+    </div>
+
+    <div class="field">
+      <label>Yedekleme</label>
+      <button type="button" id="exportBtn" style="width:100%; text-align:left; border:1px solid var(--paper-line); background:var(--card); border-radius:10px; padding:12px; font-size:.9rem; font-weight:600; color:var(--ink); cursor:pointer; margin-bottom:8px;">⬇️ Notları dosyaya aktar (.json)</button>
+      <label for="importFile" style="display:block; border:1px dashed var(--green); background:transparent; color:var(--green-deep); border-radius:10px; padding:12px; font-size:.9rem; font-weight:600; cursor:pointer; text-align:left;">⬆️ Yedekten geri yükle</label>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+      <p style="font-size:.78rem; color:var(--ink-dim); margin:8px 2px 0;">Notlar sadece bu cihazda, bu tarayıcıda saklanır. Telefon değiştirmeden veya tarayıcı verisi silinmeden önce yedek alın.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- storage ---------------- */
+  const STORAGE_KEY = "notlarim_pro_v1";
+  const load = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e){ return []; } };
+  const save = (list) => localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  let notes = load();
+
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  const dateKey = (d) => { const dt = new Date(d); return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"); };
+  const todayKey = () => dateKey(new Date());
+
+  const COLORS = ["#3E7D4C","#2F6FB0","#C97A2B","#B3492F","#7A4FB0","#1F8C8C","#B8842B","#5B6470"];
+  const PRIO_LABEL = ["Düşük","Orta","Yüksek"];
+  const REPEAT_LABEL = {yok:"", gunluk:"🔁 Günlük", haftalik:"🔁 Haftalık", aylik:"🔁 Aylık", ozel:"🔁 Özel saatler"};
+
+  /* ---------------- state ---------------- */
+  let activeTab = "home";
+  let homeDay = new Date();
+  let calFocused = new Date();
+  let calSelected = new Date();
+  let editingId = null;
+  let formColor = COLORS[0];
+  let formPrio = 1;
+  let formDone = false;
+  let formOzelSaatler = [];
+  let formAltGorevler = [];
+  let formTamamlanmaGecmisi = [];
+  let formPinned = false;
+  let sortMode = "saat";
+  let statusFilter = "tumu";
+  let selectMode = false;
+  let selectedIds = new Set();
+
+  /* ---------------- toast ---------------- */
+  let toastTimer;
+  function toast(msg, actionLabel, actionFn, duration){
+    const el = document.getElementById("toast");
+    el.querySelector("#toastMsg").textContent = msg;
+    const oldBtn = el.querySelector("button");
+    if (oldBtn) oldBtn.remove();
+    if (actionLabel && actionFn){
+      const btn = document.createElement("button");
+      btn.textContent = actionLabel;
+      btn.addEventListener("click", ()=>{ actionFn(); el.classList.remove("show"); clearTimeout(toastTimer); });
+      el.appendChild(btn);
+    }
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove("show"), duration || 1800);
+  }
+
+  /* ---------------- header ---------------- */
+  function renderHeader(){
+    document.getElementById("todayLabel").textContent =
+      new Date().toLocaleDateString("tr-TR", {weekday:"long", day:"numeric", month:"long"});
+    const dayNotes = notesForDay(todayKey());
+    document.getElementById("statTotal").textContent = dayNotes.length;
+    document.getElementById("statDone").textContent = dayNotes.filter(n=>n.tamamlandi).length;
+    document.getElementById("statAll").textContent = notes.length;
+  }
+
+  function applySortFilter(list){
+    let out = list.filter(n =>
+      statusFilter === "tumu" ? true :
+      statusFilter === "bekleyen" ? !n.tamamlandi :
+      n.tamamlandi
+    );
+    out = out.slice().sort((a,b)=>{
+      if (!!a.sabit !== !!b.sabit) return a.sabit ? -1 : 1;
+      if (sortMode === "oncelik"){
+        if (a.tamamlandi !== b.tamamlandi) return a.tamamlandi ? 1 : -1;
+        return b.oncelik - a.oncelik;
+      }
+      if (sortMode === "alfabetik"){
+        if (a.tamamlandi !== b.tamamlandi) return a.tamamlandi ? 1 : -1;
+        return a.baslik.localeCompare(b.baslik, "tr");
+      }
+      if (a.tamamlandi !== b.tamamlandi) return a.tamamlandi ? 1 : -1;
+      if (!a.saat && !b.saat) return 0;
+      if (!a.saat) return 1;
+      if (!b.saat) return -1;
+      return a.saat.localeCompare(b.saat);
+    });
+    return out;
+  }
+
+  function notesForDay(key){
+    return applySortFilter(notes.filter(n => n.tarih && dateKey(n.tarih) === key));
+  }
+
+  /* ---------------- note card render ---------------- */
+  function computeStreak(n){
+    if (!n.tekrar || n.tekrar === "yok" || !n.tamamlanmaGecmisi || !n.tamamlanmaGecmisi.length) return 0;
+    const done = new Set(n.tamamlanmaGecmisi);
+    let streak = 0;
+    let cursor = new Date();
+    if (!done.has(dateKey(cursor))) cursor.setDate(cursor.getDate()-1);
+    while (done.has(dateKey(cursor))){
+      streak++;
+      cursor.setDate(cursor.getDate()-1);
+    }
+    return streak;
+  }
+
+  function highlightMatch(text, q){
+    const escaped = escapeHtml(text);
+    if (!q) return escaped;
+    const qEsc = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!qEsc) return escaped;
+    return escaped.replace(new RegExp("("+qEsc+")", "ig"), "<mark>$1</mark>");
+  }
+
+  function noteCardHTML(n, query){
+    const badges = [];
+    if (n.saat) badges.push(`<span class="badge">⏰ ${n.saat}</span>`);
+    if (n.tekrar && n.tekrar !== "yok") badges.push(`<span class="badge">${REPEAT_LABEL[n.tekrar]}</span>`);
+    if (n.etiket){
+      n.etiket.split(",").map(t=>t.trim()).filter(Boolean).forEach(t=>{
+        badges.push(`<span class="badge">#${escapeHtml(t)}</span>`);
+      });
+    }
+    const streak = computeStreak(n);
+    if (streak >= 2) badges.push(`<span class="streak-badge">🔥 ${streak} gün</span>`);
+    if (n.altGorevler && n.altGorevler.length){
+      const doneCount = n.altGorevler.filter(s=>s.done).length;
+      badges.push(`<span class="subtask-progress">☑ ${doneCount}/${n.altGorevler.length}</span>`);
+    }
+    const prioColor = n.oncelik === 2 ? "var(--red)" : n.oncelik === 1 ? "var(--amber)" : "var(--paper-line)";
+    const titleHtml = query ? highlightMatch(n.baslik, query) : escapeHtml(n.baslik);
+    const contentHtml = n.icerik ? (query ? highlightMatch(n.icerik, query) : escapeHtml(n.icerik)) : "";
+    return `
+      <div class="note ${n.tamamlandi?"done":""} ${n.sabit?"pinned":""}" style="--accent:${n.renk}" data-id="${n.id}">
+        <div class="card-actions">
+          <button class="pin-btn ${n.sabit?"active":""}" data-pin="${n.id}" title="Sabitle"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></button>
+          <button class="del-btn" data-del="${n.id}" title="Sil"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        </div>
+        <div class="select-check" data-select="${n.id}"></div>
+        <div class="check ${n.tamamlandi?"on":""}" data-check="${n.id}"></div>
+        <div class="note-body" data-open="${n.id}">
+          <p class="note-title">${titleHtml}</p>
+          ${contentHtml ? `<p class="note-content">${contentHtml}</p>` : ""}
+          <div class="badges">${badges.join("")}</div>
+        </div>
+        <div class="prio-dot" style="background:${prioColor}"></div>
+      </div>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  function bindListEvents(container){
+    container.querySelectorAll("[data-check]").forEach(el=>{
+      el.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const id = el.getAttribute("data-check");
+        const n = notes.find(x=>x.id===id);
+        n.tamamlandi = !n.tamamlandi;
+        if (n.tekrar && n.tekrar !== "yok"){
+          n.tamamlanmaGecmisi = n.tamamlanmaGecmisi || [];
+          const key = todayKey();
+          if (n.tamamlandi){
+            if (!n.tamamlanmaGecmisi.includes(key)) n.tamamlanmaGecmisi.push(key);
+          } else {
+            n.tamamlanmaGecmisi = n.tamamlanmaGecmisi.filter(k=>k!==key);
+          }
+        }
+        save(notes); renderAll();
+      });
+    });
+    container.querySelectorAll("[data-del]").forEach(el=>{
+      el.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        deleteNoteWithUndo(el.getAttribute("data-del"));
+      });
+    });
+    container.querySelectorAll("[data-select]").forEach(el=>{
+      el.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        toggleSelect(el.getAttribute("data-select"));
+      });
+    });
+    container.querySelectorAll("[data-pin]").forEach(el=>{
+      el.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const id = el.getAttribute("data-pin");
+        const n = notes.find(x=>x.id===id);
+        n.sabit = !n.sabit;
+        save(notes); renderAll();
+      });
+    });
+    container.querySelectorAll("[data-open]").forEach(el=>{
+      el.addEventListener("click", ()=>{
+        const id = el.getAttribute("data-open");
+        if (selectMode){ toggleSelect(id); return; }
+        openEditor(id);
+      });
+    });
+    container.classList.toggle("list-select-active", selectMode);
+    container.querySelectorAll(".select-check").forEach(el=>{
+      el.classList.toggle("on", selectedIds.has(el.getAttribute("data-select")));
+    });
+  }
+
+  /* ---------------- multi-select / bulk actions ---------------- */
+  function toggleSelect(id){
+    if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+    updateBulkBar();
+    renderAll();
+  }
+  function setSelectMode(on){
+    selectMode = on;
+    if (!on) selectedIds.clear();
+    document.getElementById("homeSelectToggle").classList.toggle("active", on);
+    document.getElementById("searchSelectToggle").classList.toggle("active", on);
+    document.getElementById("fabAdd").style.display = on ? "none" : "";
+    updateBulkBar();
+    renderAll();
+  }
+  function updateBulkBar(){
+    const bar = document.getElementById("bulkBar");
+    bar.classList.toggle("show", selectMode && selectedIds.size > 0);
+    document.getElementById("bulkCount").textContent = selectedIds.size + " seçili";
+  }
+  document.getElementById("homeSelectToggle").addEventListener("click", ()=> setSelectMode(!selectMode));
+  document.getElementById("searchSelectToggle").addEventListener("click", ()=> setSelectMode(!selectMode));
+  document.getElementById("bulkCancel").addEventListener("click", ()=> setSelectMode(false));
+  document.getElementById("bulkComplete").addEventListener("click", ()=>{
+    const key = todayKey();
+    selectedIds.forEach(id=>{
+      const n = notes.find(x=>x.id===id);
+      if (!n) return;
+      n.tamamlandi = true;
+      if (n.tekrar && n.tekrar !== "yok"){
+        n.tamamlanmaGecmisi = n.tamamlanmaGecmisi || [];
+        if (!n.tamamlanmaGecmisi.includes(key)) n.tamamlanmaGecmisi.push(key);
+      }
+    });
+    save(notes);
+    toast(selectedIds.size + " not tamamlandı olarak işaretlendi");
+    setSelectMode(false);
+  });
+  document.getElementById("bulkDelete").addEventListener("click", ()=>{
+    const ids = [...selectedIds];
+    const removed = notes.filter(n=>ids.includes(n.id));
+    const remaining = notes.filter(n=>!ids.includes(n.id));
+    notes = remaining;
+    save(notes);
+    const count = removed.length;
+    setSelectMode(false);
+    toast(count + " not silindi", "Geri Al", ()=>{
+      notes = notes.concat(removed);
+      save(notes); renderAll();
+    }, 4000);
+  });
+
+  /* ---------------- home tab ---------------- */
+  function renderHome(){
+    document.getElementById("dayTitle").textContent =
+      homeDay.toLocaleDateString("tr-TR", {weekday:"long", day:"numeric", month:"long"});
+    const list = notesForDay(dateKey(homeDay));
+    const el = document.getElementById("homeList");
+    if (!list.length){
+      el.innerHTML = `<div class="empty"><span class="glyph">📝</span>Bu gün için not yok.<br>Yukarıdan hızlıca ekleyebilirsiniz.</div>`;
+      return;
+    }
+    el.innerHTML = list.map(noteCardHTML).join("");
+    bindListEvents(el);
+  }
+
+  /* ---------------- calendar tab ---------------- */
+  function renderCalendar(){
+    const y = calFocused.getFullYear(), m = calFocused.getMonth();
+    document.getElementById("calMonthLabel").textContent =
+      calFocused.toLocaleDateString("tr-TR", {month:"long", year:"numeric"});
+
+    const grid = document.getElementById("calGrid");
+    const dows = ["Pt","Sa","Ça","Pe","Cu","Ct","Pz"];
+    let html = dows.map(d=>`<div class="dow">${d}</div>`).join("");
+
+    const firstOfMonth = new Date(y, m, 1);
+    let startOffset = (firstOfMonth.getDay() + 6) % 7; // Pazartesi=0
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const daysInPrevMonth = new Date(y, m, 0).getDate();
+
+    const cells = [];
+    for (let i=startOffset; i>0; i--) cells.push({d: daysInPrevMonth-i+1, other:true, date:new Date(y, m-1, daysInPrevMonth-i+1)});
+    for (let d=1; d<=daysInMonth; d++) cells.push({d, other:false, date:new Date(y,m,d)});
+    while (cells.length % 7 !== 0) { const n = cells.length - (startOffset+daysInMonth) + 1; cells.push({d:n, other:true, date:new Date(y,m+1,n)}); }
+
+    const tKey = todayKey(), sKey = dateKey(calSelected);
+    cells.forEach(c=>{
+      const key = dateKey(c.date);
+      const dayNotes = notesForDay(key);
+      const dots = dayNotes.slice(0,3).map(n=>`<span style="background:${n.renk}"></span>`).join("");
+      const cls = ["cal-day"];
+      if (c.other) cls.push("other");
+      if (key===tKey) cls.push("today");
+      if (key===sKey) cls.push("sel");
+      html += `<div class="${cls.join(" ")}" data-date="${key}">${c.d}<div class="cal-dots">${dots}</div></div>`;
+    });
+    grid.innerHTML = html;
+    grid.querySelectorAll("[data-date]").forEach(el=>{
+      el.addEventListener("click", ()=>{
+        const [yy,mm,dd] = el.getAttribute("data-date").split("-").map(Number);
+        calSelected = new Date(yy, mm-1, dd);
+        renderCalendar(); renderCalList();
+      });
+    });
+    renderCalList();
+  }
+
+  function renderCalList(){
+    document.getElementById("calDayTitle").textContent =
+      calSelected.toLocaleDateString("tr-TR", {weekday:"long", day:"numeric", month:"long"});
+    const list = notesForDay(dateKey(calSelected));
+    const el = document.getElementById("calList");
+    if (!list.length){
+      el.innerHTML = `<div class="empty"><span class="glyph">📅</span>Bu gün için not yok.</div>`;
+      return;
+    }
+    el.innerHTML = list.map(noteCardHTML).join("");
+    bindListEvents(el);
+  }
+
+  /* ---------------- search tab ---------------- */
+  function renderSearch(){
+    const q = document.getElementById("searchInput").value.trim().toLowerCase();
+    const el = document.getElementById("searchList");
+    const filterBar = document.getElementById("searchFilterBar");
+    if (!q){
+      filterBar.style.display = "none";
+      el.innerHTML = `<div class="empty"><span class="glyph">🔍</span>Başlık, içerik veya etiket arayın.</div>`;
+      return;
+    }
+    filterBar.style.display = "flex";
+    const results = applySortFilter(notes.filter(n =>
+      n.baslik.toLowerCase().includes(q) ||
+      (n.icerik||"").toLowerCase().includes(q) ||
+      (n.etiket||"").toLowerCase().includes(q)
+    ));
+    if (!results.length){
+      el.innerHTML = `<div class="empty"><span class="glyph">🔍</span>Sonuç bulunamadı.</div>`;
+      return;
+    }
+    el.innerHTML = results.map(n=>noteCardHTML(n, q)).join("");
+    bindListEvents(el);
+  }
+
+  function deleteNoteWithUndo(id){
+    const idx = notes.findIndex(x=>x.id===id);
+    if (idx === -1) return;
+    const removed = notes[idx];
+    notes.splice(idx, 1);
+    save(notes); renderAll();
+    toast("Not silindi", "Geri Al", ()=>{
+      notes.splice(idx, 0, removed);
+      save(notes); renderAll();
+    }, 4000);
+  }
+
+  function renderAll(){
+    renderHeader();
+    if (activeTab==="home") renderHome();
+    if (activeTab==="calendar") renderCalendar();
+    if (activeTab==="search") renderSearch();
+  }
+
+  /* ---------------- tabs ---------------- */
+  document.querySelectorAll("nav.tabs button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      activeTab = btn.getAttribute("data-tab");
+      ["home","calendar","search"].forEach(t=>{
+        document.getElementById("tab-"+t).style.display = (t===activeTab) ? "block" : "none";
+      });
+      if (selectMode) setSelectMode(false); else renderAll();
+    });
+  });
+
+  document.getElementById("homeSortSelect").addEventListener("change", (e)=>{
+    sortMode = e.target.value;
+    renderAll();
+  });
+  document.querySelectorAll("#homeStatusChips [data-status]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      statusFilter = btn.getAttribute("data-status");
+      document.querySelectorAll("#homeStatusChips [data-status]").forEach(b=>b.classList.toggle("active", b===btn));
+      document.querySelectorAll("#searchStatusChips [data-status]").forEach(b=>b.classList.toggle("active", b.getAttribute("data-status")===statusFilter));
+      renderAll();
+    });
+  });
+  document.querySelectorAll("#searchStatusChips [data-status]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      statusFilter = btn.getAttribute("data-status");
+      document.querySelectorAll("#searchStatusChips [data-status]").forEach(b=>b.classList.toggle("active", b===btn));
+      document.querySelectorAll("#homeStatusChips [data-status]").forEach(b=>b.classList.toggle("active", b.getAttribute("data-status")===statusFilter));
+      renderAll();
+    });
+  });
+
+  document.getElementById("calPrev").addEventListener("click", ()=>{
+    calFocused = new Date(calFocused.getFullYear(), calFocused.getMonth()-1, 1);
+    renderCalendar();
+  });
+  document.getElementById("calNext").addEventListener("click", ()=>{
+    calFocused = new Date(calFocused.getFullYear(), calFocused.getMonth()+1, 1);
+    renderCalendar();
+  });
+  document.getElementById("searchInput").addEventListener("input", renderSearch);
+
+  /* ---------------- quick add ---------------- */
+  function quickAdd(){
+    const input = document.getElementById("quickInput");
+    const text = input.value.trim();
+    if (!text) return;
+    notes.push({
+      id: uid(), baslik: text, icerik:"", tarih: homeDay.toISOString(), saat:null,
+      tekrar:"yok", ozelSaatler:[], renk: COLORS[0], etiket:"", oncelik:1,
+      tamamlandi:false, olusturma: Date.now()
+    });
+    save(notes); input.value=""; renderAll();
+  }
+  document.getElementById("quickAdd").addEventListener("click", quickAdd);
+  document.getElementById("quickInput").addEventListener("keydown", e=>{ if(e.key==="Enter") quickAdd(); });
+  document.getElementById("fBaslik").addEventListener("input", ()=> document.getElementById("fBaslikField").classList.remove("invalid"));
+
+  /* ---------------- editor sheet ---------------- */
+  const overlay = document.getElementById("overlay");
+  const colorRow = document.getElementById("colorRow");
+  colorRow.innerHTML = COLORS.map(c=>`<div class="swatch" data-color="${c}" style="background:${c}"></div>`).join("");
+
+  function openEditor(id){
+    editingId = id || null;
+    const n = id ? notes.find(x=>x.id===id) : null;
+
+    document.getElementById("fBaslikField").classList.remove("invalid");
+    document.getElementById("sheetTitle").textContent = n ? "Notu Düzenle" : "Yeni Not";
+    document.getElementById("deleteBtn").style.display = n ? "block" : "none";
+    document.getElementById("fBaslik").value = n ? n.baslik : "";
+    document.getElementById("fIcerik").value = n ? n.icerik : "";
+    document.getElementById("fTarih").value = n && n.tarih ? dateKey(n.tarih) : dateKey(activeTab==="calendar" ? calSelected : homeDay);
+    document.getElementById("fSaat").value = n && n.saat ? n.saat : "";
+    document.getElementById("fTekrar").value = n ? n.tekrar : "yok";
+    document.getElementById("fEtiket").value = n ? n.etiket : "";
+    formColor = n ? n.renk : COLORS[0];
+    formPrio = n ? n.oncelik : 1;
+    formDone = n ? n.tamamlandi : false;
+    formPinned = n ? !!n.sabit : false;
+    formOzelSaatler = n ? [...(n.ozelSaatler||[])] : [];
+    formAltGorevler = n ? [...(n.altGorevler||[])] : [];
+    formTamamlanmaGecmisi = n ? [...(n.tamamlanmaGecmisi||[])] : [];
+
+    refreshColorSel(); refreshPrioSel(); refreshDoneSwitch(); refreshPinnedSwitch(); refreshOzelSaatler(); toggleOzelField(); refreshSubtasks();
+
+    const hasAdvanced = !!(n && (n.icerik || (n.tekrar && n.tekrar !== "yok") || n.renk !== COLORS[0] || n.oncelik !== 1 || n.etiket || n.tamamlandi || n.sabit));
+    setAdvanced(hasAdvanced);
+
+    overlay.classList.add("open");
+  }
+  function closeEditor(){ overlay.classList.remove("open"); }
+  document.getElementById("sheetClose").addEventListener("click", closeEditor);
+  overlay.addEventListener("click", (e)=>{ if (e.target===overlay) closeEditor(); });
+  document.getElementById("fabAdd").addEventListener("click", ()=> openEditor(null));
+
+  colorRow.addEventListener("click", (e)=>{
+    const sw = e.target.closest("[data-color]");
+    if (!sw) return;
+    formColor = sw.getAttribute("data-color");
+    refreshColorSel();
+  });
+  function refreshColorSel(){
+    colorRow.querySelectorAll(".swatch").forEach(s=>{
+      s.classList.toggle("sel", s.getAttribute("data-color")===formColor);
+      s.textContent = s.getAttribute("data-color")===formColor ? "✓" : "";
+    });
+  }
+
+  document.getElementById("prioRow").addEventListener("click", (e)=>{
+    const b = e.target.closest("button");
+    if (!b) return;
+    formPrio = Number(b.getAttribute("data-p"));
+    refreshPrioSel();
+  });
+  function refreshPrioSel(){
+    document.querySelectorAll("#prioRow button").forEach(b=>{
+      b.classList.toggle("sel", Number(b.getAttribute("data-p"))===formPrio);
+    });
+  }
+
+  const doneSwitch = document.getElementById("fTamamlandi");
+  doneSwitch.addEventListener("click", ()=>{ formDone = !formDone; refreshDoneSwitch(); });
+  function refreshDoneSwitch(){ doneSwitch.classList.toggle("on", formDone); }
+
+  const pinnedSwitch = document.getElementById("fSabit");
+  pinnedSwitch.addEventListener("click", ()=>{ formPinned = !formPinned; refreshPinnedSwitch(); });
+  function refreshPinnedSwitch(){ pinnedSwitch.classList.toggle("on", formPinned); }
+
+  /* ---------------- advanced section toggle ---------------- */
+  const advancedSection = document.getElementById("advancedSection");
+  const advancedToggleBtn = document.getElementById("advancedToggle");
+  let advancedOpen = false;
+  function setAdvanced(open){
+    advancedOpen = open;
+    advancedSection.style.display = open ? "block" : "none";
+    advancedToggleBtn.classList.toggle("open", open);
+    document.getElementById("advancedToggleLabel").textContent = open ? "Daha az göster" : "Daha fazla seçenek";
+    document.getElementById("advancedToggleChevron").textContent = open ? "▴" : "▾";
+  }
+  advancedToggleBtn.addEventListener("click", ()=> setAdvanced(!advancedOpen));
+
+  /* ---------------- subtasks ---------------- */
+  function refreshSubtasks(){
+    const el = document.getElementById("subtaskList");
+    el.innerHTML = formAltGorevler.map(s => `
+      <div class="subtask-row ${s.done?"done":""}">
+        <div class="subtask-check ${s.done?"on":""}" data-sub-toggle="${s.id}"></div>
+        <span>${escapeHtml(s.text)}</span>
+        <button type="button" data-sub-del="${s.id}">✕</button>
+      </div>`).join("");
+    el.querySelectorAll("[data-sub-toggle]").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        const t = formAltGorevler.find(x=>x.id===b.getAttribute("data-sub-toggle"));
+        if (t) t.done = !t.done;
+        refreshSubtasks();
+      });
+    });
+    el.querySelectorAll("[data-sub-del]").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        formAltGorevler = formAltGorevler.filter(x=>x.id!==b.getAttribute("data-sub-del"));
+        refreshSubtasks();
+      });
+    });
+  }
+  function addSubtaskFromInput(){
+    const input = document.getElementById("newSubtaskInput");
+    const text = input.value.trim();
+    if (!text) return;
+    formAltGorevler.push({id: uid(), text, done:false});
+    input.value = "";
+    refreshSubtasks();
+  }
+  document.getElementById("addSubtaskBtn").addEventListener("click", addSubtaskFromInput);
+  document.getElementById("newSubtaskInput").addEventListener("keydown", e=>{ if (e.key==="Enter"){ e.preventDefault(); addSubtaskFromInput(); } });
+
+  document.getElementById("fTekrar").addEventListener("change", toggleOzelField);
+  function toggleOzelField(){
+    document.getElementById("ozelSaatlerField").style.display =
+      document.getElementById("fTekrar").value === "ozel" ? "block" : "none";
+  }
+  function refreshOzelSaatler(){
+    const el = document.getElementById("ozelSaatlerList");
+    el.innerHTML = formOzelSaatler.map(t=>`<span class="time-chip">${t}<button type="button" data-rm="${t}">✕</button></span>`).join("");
+    el.querySelectorAll("[data-rm]").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        formOzelSaatler = formOzelSaatler.filter(t=>t!==b.getAttribute("data-rm"));
+        refreshOzelSaatler();
+      });
+    });
+  }
+  document.getElementById("addTimeBtn").addEventListener("click", ()=>{
+    const input = document.getElementById("newTimeInput");
+    const t = input.value;
+    if (!t) { toast("Önce bir saat seçin"); return; }
+    if (!formOzelSaatler.includes(t)) { formOzelSaatler.push(t); refreshOzelSaatler(); }
+    input.value = "";
+  });
+
+  document.getElementById("saveBtn").addEventListener("click", ()=>{
+    const baslikField = document.getElementById("fBaslikField");
+    const baslik = document.getElementById("fBaslik").value.trim();
+    baslikField.classList.remove("invalid");
+    if (!baslik){
+      baslikField.classList.add("invalid");
+      document.getElementById("fBaslik").focus();
+      return;
+    }
+    const tekrar = document.getElementById("fTekrar").value;
+    if (tekrar === "ozel" && !formOzelSaatler.length){
+      if (!advancedOpen) setAdvanced(true);
+      toast("En az bir özel saat ekleyin");
+      return;
+    }
+
+    const tarihStr = document.getElementById("fTarih").value;
+    const tarih = tarihStr ? new Date(tarihStr+"T00:00:00").toISOString() : null;
+    const saat = document.getElementById("fSaat").value || null;
+    const etiketRaw = document.getElementById("fEtiket").value.trim();
+    const icerik = document.getElementById("fIcerik").value.trim();
+
+    const extractTags = (text) => [...text.matchAll(/#([\p{L}\p{N}_]+)/gu)].map(m=>m[1]);
+    const manualTags = etiketRaw.split(",").map(t=>t.trim()).filter(Boolean);
+    const autoTags = [...extractTags(baslik), ...extractTags(icerik)];
+    const etiket = [...new Set([...manualTags, ...autoTags])].join(", ");
+
+    if (editingId){
+      const n = notes.find(x=>x.id===editingId);
+      Object.assign(n, {baslik, icerik, tarih, saat, tekrar, ozelSaatler:formOzelSaatler, renk:formColor, etiket, oncelik:formPrio, tamamlandi:formDone, altGorevler:formAltGorevler, tamamlanmaGecmisi:formTamamlanmaGecmisi, sabit:formPinned});
+    } else {
+      notes.push({id:uid(), baslik, icerik, tarih, saat, tekrar, ozelSaatler:formOzelSaatler, renk:formColor, etiket, oncelik:formPrio, tamamlandi:formDone, altGorevler:formAltGorevler, tamamlanmaGecmisi:formTamamlanmaGecmisi, sabit:formPinned, olusturma:Date.now()});
+    }
+    save(notes);
+    closeEditor();
+    renderAll();
+    toast("Kaydedildi");
+  });
+
+  document.getElementById("deleteBtn").addEventListener("click", ()=>{
+    if (!editingId) return;
+    closeEditor();
+    deleteNoteWithUndo(editingId);
+  });
+
+  /* ---------------- settings sheet ---------------- */
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  document.getElementById("settingsBtn").addEventListener("click", ()=>{
+    refreshNotifSwitch();
+    settingsOverlay.classList.add("open");
+  });
+  document.getElementById("settingsClose").addEventListener("click", ()=> settingsOverlay.classList.remove("open"));
+  settingsOverlay.addEventListener("click", (e)=>{ if (e.target===settingsOverlay) settingsOverlay.classList.remove("open"); });
+
+  /* ---------------- notifications (best-effort, app açıkken çalışır) ---------------- */
+  const NOTIF_PREF_KEY = "notlarim_pro_notif_on";
+  const notifSwitchEl = document.getElementById("notifSwitch");
+  const notifStatusEl = document.getElementById("notifStatus");
+
+  function notifPrefOn(){ return localStorage.getItem(NOTIF_PREF_KEY) === "1"; }
+
+  function refreshNotifSwitch(){
+    const supported = "Notification" in window;
+    const perm = supported ? Notification.permission : "unsupported";
+    notifSwitchEl.classList.toggle("on", notifPrefOn() && perm === "granted");
+    if (!supported){
+      notifStatusEl.textContent = "Bu tarayıcı bildirimleri desteklemiyor.";
+    } else if (perm === "denied"){
+      notifStatusEl.textContent = "Bildirim izni reddedilmiş. Tarayıcı ayarlarından izin vermeniz gerekir.";
+    } else if (perm === "granted" && notifPrefOn()){
+      notifStatusEl.textContent = "Bildirimler açık. Not zamanı geldiğinde, uygulama açık olduğu sürece bildirim gösterilir.";
+    } else {
+      notifStatusEl.textContent = "Kapalı sekmede veya uygulama tamamen kapalıyken bildirim gönderilemez — bu tarayıcı kısıtlaması, uygulamanın açık/arka planda olması gerekir.";
+    }
+  }
+
+  notifSwitchEl.addEventListener("click", async ()=>{
+    if (!("Notification" in window)){ toast("Bildirim desteklenmiyor"); return; }
+    if (notifPrefOn()){
+      localStorage.setItem(NOTIF_PREF_KEY, "0");
+      refreshNotifSwitch();
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm === "granted"){
+      localStorage.setItem(NOTIF_PREF_KEY, "1");
+      toast("Bildirimler açıldı");
+    } else {
+      toast("İzin verilmedi");
+    }
+    refreshNotifSwitch();
+  });
+
+  const firedToday = new Set(JSON.parse(sessionStorage.getItem("firedToday") || "[]"));
+  function markFired(key){ firedToday.add(key); sessionStorage.setItem("firedToday", JSON.stringify([...firedToday])); }
+
+  function checkReminders(){
+    if (!notifPrefOn() || Notification.permission !== "granted") return;
+    const now = new Date();
+    const hhmm = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+    const today = todayKey();
+    notes.forEach(n=>{
+      if (n.tamamlandi || !n.tarih) return;
+      const times = n.tekrar === "ozel" ? (n.ozelSaatler||[]) : (n.saat ? [n.saat] : []);
+      if (!times.includes(hhmm)) return;
+
+      const isToday = dateKey(n.tarih) === today;
+      const repeats = n.tekrar === "gunluk" || n.tekrar === "haftalik" || n.tekrar === "aylik" || n.tekrar === "ozel";
+      const dayMatches =
+        n.tekrar === "gunluk" ? true :
+        n.tekrar === "haftalik" ? new Date(n.tarih).getDay() === now.getDay() :
+        n.tekrar === "aylik" ? new Date(n.tarih).getDate() === now.getDate() :
+        n.tekrar === "ozel" ? isToday :
+        isToday;
+      if (!dayMatches) return;
+
+      const fireKey = n.id+"|"+today+"|"+hhmm;
+      if (firedToday.has(fireKey)) return;
+      markFired(fireKey);
+      try{
+        new Notification(n.baslik, { body: n.icerik || "Vaktin geldi!", icon: "icons/icon-192.png" });
+      }catch(e){ /* bildirim gösterilemedi */ }
+    });
+  }
+  setInterval(checkReminders, 20000);
+
+  /* ---------------- backup / restore ---------------- */
+  document.getElementById("exportBtn").addEventListener("click", ()=>{
+    const blob = new Blob([JSON.stringify(notes, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `notlarim-yedek-${stamp}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast("Yedek indirildi");
+  });
+
+  document.getElementById("importFile").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        if (!Array.isArray(parsed)) throw new Error("format");
+        const validIds = new Set(notes.map(n=>n.id));
+        let added = 0;
+        parsed.forEach(n=>{
+          if (n && n.id && n.baslik && !validIds.has(n.id)){ notes.push(n); added++; }
+        });
+        save(notes); renderAll();
+        toast(`${added} not içe aktarıldı`);
+      }catch(err){
+        toast("Geçersiz yedek dosyası");
+      }
+      e.target.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  /* ---------------- service worker (çevrimdışı + ana ekrana ekleme) ---------------- */
+  if ("serviceWorker" in navigator){
+    window.addEventListener("load", ()=>{
+      navigator.serviceWorker.register("sw.js").catch(()=>{ /* file:// üzerinden açıldıysa kayıt atlanır */ });
+    });
+  }
+
+  /* ---------------- offline indicator ---------------- */
+  function updateOfflineBar(){
+    document.getElementById("offlineBar").style.display = navigator.onLine ? "none" : "block";
+  }
+  window.addEventListener("online", updateOfflineBar);
+  window.addEventListener("offline", updateOfflineBar);
+  updateOfflineBar();
+
+  /* ---------------- init ---------------- */
+  renderAll();
+
+  const params = new URLSearchParams(location.search);
+  const sharedTitle = params.get("title");
+  const sharedUrl = params.get("url");
+  const sharedText = params.get("text") || sharedUrl || "";
+  if (params.get("action") === "yeni-not"){
+    openEditor(null);
+    history.replaceState(null, "", location.pathname);
+  } else if (sharedTitle || sharedText){
+    openEditor(null);
+    if (sharedTitle) document.getElementById("fBaslik").value = sharedTitle;
+    if (sharedText) document.getElementById("fIcerik").value = sharedText;
+    history.replaceState(null, "", location.pathname);
+    toast("Paylaşılan içerik nota eklendi");
+  }
+})();
+</script>
+</body>
+</html>
