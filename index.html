@@ -357,6 +357,16 @@
   .field-error{ color:var(--red); font-size:.74rem; font-weight:600; margin-top:4px; display:none; }
   .field.invalid .field-error{ display:block; }
   @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+
+  .week-chart{ display:flex; gap:6px; align-items:flex-end; height:64px; margin-bottom:6px; }
+  .week-bar{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .week-bar-fill{ width:100%; background:var(--green); border-radius:4px 4px 0 0; min-height:3px; }
+  .week-bar.today .week-bar-fill{ background:var(--amber); }
+  .week-bar-label{ font-size:.62rem; color:var(--ink-dim); margin-top:4px; }
+  .week-summary{ font-size:.78rem; color:var(--ink-dim); }
+
+  .note[draggable="true"]{ cursor:grab; }
+  .note.drag-over{ outline:2px dashed var(--green); outline-offset:2px; }
   .del-note-btn{
     width:100%; background:transparent; color:var(--red); border:1.5px solid #F0D9D2; border-radius:14px;
     padding:12px; font-size:.9rem; font-weight:700; cursor:pointer; margin-top:10px;
@@ -415,6 +425,7 @@
           <option value="saat">Saate göre</option>
           <option value="oncelik">Önceliğe göre</option>
           <option value="alfabetik">A - Z</option>
+          <option value="elle">Elle sırala</option>
         </select>
         <div class="chip-group" id="homeStatusChips">
           <button type="button" class="chip active" data-status="tumu">Tümü</button>
@@ -569,6 +580,20 @@
     </div>
 
     <div class="field">
+      <label>Yazı Boyutu</label>
+      <div class="prio-row" id="fontSizeRow">
+        <button type="button" data-size="15">Küçük</button>
+        <button type="button" data-size="16">Normal</button>
+        <button type="button" data-size="19">Büyük</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Bu Hafta</label>
+      <div id="weekStats"></div>
+    </div>
+
+    <div class="field">
       <label>Bildirimler</label>
       <div class="toggle-row" style="background:var(--card); border:1px solid var(--paper-line); border-radius:10px; padding:12px;">
         <span style="font-size:.9rem; max-width:74%;">Saati gelen notlar için tarayıcı bildirimi göster (uygulama açıkken çalışır)</span>
@@ -661,6 +686,11 @@
     );
     out = out.slice().sort((a,b)=>{
       if (!!a.sabit !== !!b.sabit) return a.sabit ? -1 : 1;
+      if (sortMode === "elle"){
+        const as = a.sira ?? Infinity, bs = b.sira ?? Infinity;
+        if (as !== bs) return as - bs;
+        return (a.olusturma||0) - (b.olusturma||0);
+      }
       if (sortMode === "oncelik"){
         if (a.tamamlandi !== b.tamamlandi) return a.tamamlandi ? 1 : -1;
         return b.oncelik - a.oncelik;
@@ -722,9 +752,11 @@
     const prioColor = n.oncelik === 2 ? "var(--red)" : n.oncelik === 1 ? "var(--amber)" : "var(--paper-line)";
     const titleHtml = query ? highlightMatch(n.baslik, query) : escapeHtml(n.baslik);
     const contentHtml = n.icerik ? (query ? highlightMatch(n.icerik, query) : escapeHtml(n.icerik)) : "";
+    const dragOn = sortMode === "elle" && !selectMode;
     return `
-      <div class="note ${n.tamamlandi?"done":""} ${n.sabit?"pinned":""}" style="--accent:${n.renk}" data-id="${n.id}">
+      <div class="note ${n.tamamlandi?"done":""} ${n.sabit?"pinned":""}" style="--accent:${n.renk}" data-id="${n.id}" ${dragOn ? 'draggable="true"' : ""}>
         <div class="card-actions">
+          ${dragOn ? '<span style="cursor:grab; padding:4px; opacity:.5;">⠿</span>' : ""}
           <button class="pin-btn ${n.sabit?"active":""}" data-pin="${n.id}" title="Sabitle"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></button>
           <button class="del-btn" data-del="${n.id}" title="Sil"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </div>
@@ -743,7 +775,7 @@
     return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   }
 
-  function bindListEvents(container){
+  function bindListEvents(container, list){
     container.querySelectorAll("[data-check]").forEach(el=>{
       el.addEventListener("click", (e)=>{
         e.stopPropagation();
@@ -794,6 +826,29 @@
     container.querySelectorAll(".select-check").forEach(el=>{
       el.classList.toggle("on", selectedIds.has(el.getAttribute("data-select")));
     });
+
+    if (list && sortMode === "elle" && !selectMode){
+      let dragId = null;
+      container.querySelectorAll('.note[draggable="true"]').forEach(card=>{
+        card.addEventListener("dragstart", ()=>{ dragId = card.getAttribute("data-id"); });
+        card.addEventListener("dragover", (e)=>{ e.preventDefault(); card.classList.add("drag-over"); });
+        card.addEventListener("dragleave", ()=>{ card.classList.remove("drag-over"); });
+        card.addEventListener("drop", (e)=>{
+          e.preventDefault();
+          card.classList.remove("drag-over");
+          const targetId = card.getAttribute("data-id");
+          if (!dragId || dragId === targetId) return;
+          const fromIdx = list.findIndex(n=>n.id===dragId);
+          const toIdx = list.findIndex(n=>n.id===targetId);
+          if (fromIdx < 0 || toIdx < 0) return;
+          const [moved] = list.splice(fromIdx, 1);
+          list.splice(toIdx, 0, moved);
+          list.forEach((n, i)=>{ n.sira = i * 10; });
+          save(notes);
+          renderAll();
+        });
+      });
+    }
   }
 
   /* ---------------- multi-select / bulk actions ---------------- */
@@ -858,8 +913,8 @@
       el.innerHTML = `<div class="empty"><span class="glyph">📝</span>Bu gün için not yok.<br>Yukarıdan hızlıca ekleyebilirsiniz.</div>`;
       return;
     }
-    el.innerHTML = list.map(noteCardHTML).join("");
-    bindListEvents(el);
+    el.innerHTML = list.map(n=>noteCardHTML(n)).join("");
+    bindListEvents(el, list);
   }
 
   /* ---------------- calendar tab ---------------- */
@@ -913,8 +968,8 @@
       el.innerHTML = `<div class="empty"><span class="glyph">📅</span>Bu gün için not yok.</div>`;
       return;
     }
-    el.innerHTML = list.map(noteCardHTML).join("");
-    bindListEvents(el);
+    el.innerHTML = list.map(n=>noteCardHTML(n)).join("");
+    bindListEvents(el, list);
   }
 
   /* ---------------- search tab ---------------- */
@@ -1210,10 +1265,69 @@
   const settingsOverlay = document.getElementById("settingsOverlay");
   document.getElementById("settingsBtn").addEventListener("click", ()=>{
     refreshNotifSwitch();
+    refreshFontSizeSel();
+    renderWeekStats();
     settingsOverlay.classList.add("open");
   });
   document.getElementById("settingsClose").addEventListener("click", ()=> settingsOverlay.classList.remove("open"));
   settingsOverlay.addEventListener("click", (e)=>{ if (e.target===settingsOverlay) settingsOverlay.classList.remove("open"); });
+
+  /* ---------------- font size ---------------- */
+  const FONT_SIZE_KEY = "notlarim_pro_font_size";
+  function currentFontSize(){ return localStorage.getItem(FONT_SIZE_KEY) || "16"; }
+  function applyFontSize(px){ document.documentElement.style.fontSize = px + "px"; }
+  function refreshFontSizeSel(){
+    const cur = currentFontSize();
+    document.querySelectorAll("#fontSizeRow button").forEach(b=>{
+      b.classList.toggle("sel", b.getAttribute("data-size") === cur);
+    });
+  }
+  document.querySelectorAll("#fontSizeRow button").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const px = b.getAttribute("data-size");
+      localStorage.setItem(FONT_SIZE_KEY, px);
+      applyFontSize(px);
+      refreshFontSizeSel();
+    });
+  });
+  applyFontSize(currentFontSize());
+
+  /* ---------------- weekly stats ---------------- */
+  function renderWeekStats(){
+    const dowShort = ["Pt","Sa","Ça","Pe","Cu","Ct","Pz"];
+    const days = [];
+    for (let i=6; i>=0; i--){
+      const d = new Date(); d.setDate(d.getDate()-i);
+      days.push(d);
+    }
+    const counts = days.map(d=>{
+      const key = dateKey(d);
+      let c = 0;
+      notes.forEach(n=>{
+        if (n.tekrar && n.tekrar !== "yok"){
+          if (n.tamamlanmaGecmisi && n.tamamlanmaGecmisi.includes(key)) c++;
+        } else if (n.tarih && dateKey(n.tarih) === key && n.tamamlandi){
+          c++;
+        }
+      });
+      return c;
+    });
+    const max = Math.max(1, ...counts);
+    const tKey = todayKey();
+    const bars = days.map((d, i)=>{
+      const key = dateKey(d);
+      const h = Math.round((counts[i] / max) * 100);
+      return `<div class="week-bar ${key===tKey?"today":""}">
+        <div class="week-bar-fill" style="height:${Math.max(h,4)}%"></div>
+        <div class="week-bar-label">${dowShort[(d.getDay()+6)%7]}</div>
+      </div>`;
+    }).join("");
+    const total = counts.reduce((a,b)=>a+b, 0);
+    document.getElementById("weekStats").innerHTML = `
+      <div class="week-chart">${bars}</div>
+      <div class="week-summary">Bu hafta <b style="color:var(--green-deep)">${total}</b> not tamamladınız.</div>
+    `;
+  }
 
   /* ---------------- notifications (best-effort, app açıkken çalışır) ---------------- */
   const NOTIF_PREF_KEY = "notlarim_pro_notif_on";
