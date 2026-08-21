@@ -29,7 +29,7 @@
     font-size: 16px;
   }
   @media (prefers-color-scheme: dark){
-    :root{
+    :root:not([data-theme="light"]):not([data-theme="dark"]){
       --paper:#1C1D18;
       --paper-line:#33352C;
       --ink:#EDEAE0;
@@ -42,6 +42,19 @@
       --card:#242520;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
     }
+  }
+  :root[data-theme="dark"]{
+    --paper:#1C1D18;
+    --paper-line:#33352C;
+    --ink:#EDEAE0;
+    --ink-dim:#9C9A8C;
+    --green:#5FA36F;
+    --green-deep:#8FC79B;
+    --green-tint:#243425;
+    --red:#D9765D;
+    --amber:#D6A84F;
+    --card:#242520;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.25);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
@@ -367,6 +380,26 @@
 
   .note[draggable="true"]{ cursor:grab; }
   .note.drag-over{ outline:2px dashed var(--green); outline-offset:2px; }
+
+  .tag-badge{ border:none; cursor:pointer; font-family:inherit; }
+  .tag-badge:hover{ filter:brightness(0.9); }
+
+  .skip-btn, .share-btn{
+    border:none; background:transparent; color:var(--ink-dim); font-size:1rem; cursor:pointer; padding:4px; opacity:.5;
+  }
+  .skip-btn:hover, .share-btn:hover{ opacity:1; color:var(--green-deep); }
+  .note.skipped-today{ opacity:.6; }
+  .skip-tag{ font-size:.68rem; font-weight:700; padding:3px 8px; border-radius:20px; background:var(--paper-line); color:var(--ink-dim); }
+
+  .trash-row{
+    display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--paper-line);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .trash-row:last-child{ border-bottom:none; }
+  .trash-row .title{ flex:1; font-size:.9rem; font-weight:600; }
+  .trash-row .meta{ font-size:.72rem; color:var(--ink-dim); }
+  .trash-row button{ border:none; background:var(--green-tint); color:var(--green-deep); border-radius:8px; padding:6px 10px; font-size:.76rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .trash-row button.danger{ background:#FBE7E1; color:var(--red); }
   .del-note-btn{
     width:100%; background:transparent; color:var(--red); border:1.5px solid #F0D9D2; border-radius:14px;
     padding:12px; font-size:.9rem; font-weight:700; cursor:pointer; margin-top:10px;
@@ -603,12 +636,38 @@
     </div>
 
     <div class="field">
+      <label>Tema</label>
+      <div class="prio-row" id="themeRow">
+        <button type="button" data-theme="system">Sistem</button>
+        <button type="button" data-theme="light">Açık</button>
+        <button type="button" data-theme="dark">Koyu</button>
+      </div>
+    </div>
+
+    <div class="field">
       <label>Yedekleme</label>
       <button type="button" id="exportBtn" style="width:100%; text-align:left; border:1px solid var(--paper-line); background:var(--card); border-radius:10px; padding:12px; font-size:.9rem; font-weight:600; color:var(--ink); cursor:pointer; margin-bottom:8px;">⬇️ Notları dosyaya aktar (.json)</button>
       <label for="importFile" style="display:block; border:1px dashed var(--green); background:transparent; color:var(--green-deep); border-radius:10px; padding:12px; font-size:.9rem; font-weight:600; cursor:pointer; text-align:left;">⬆️ Yedekten geri yükle</label>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
       <p style="font-size:.78rem; color:var(--ink-dim); margin:8px 2px 0;">Notlar sadece bu cihazda, bu tarayıcıda saklanır. Telefon değiştirmeden veya tarayıcı verisi silinmeden önce yedek alın.</p>
     </div>
+
+    <div class="field">
+      <label>Çöp Kutusu</label>
+      <button type="button" id="trashBtn" style="width:100%; text-align:left; border:1px solid var(--paper-line); background:var(--card); border-radius:10px; padding:12px; font-size:.9rem; font-weight:600; color:var(--ink); cursor:pointer;">🗑 Çöp kutusunu aç (<span id="trashCount">0</span>)</button>
+      <p style="font-size:.78rem; color:var(--ink-dim); margin:8px 2px 0;">Silinen notlar 30 gün çöp kutusunda tutulur, sonra kalıcı olarak silinir.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Trash sheet -->
+<div class="overlay" id="trashOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>Çöp Kutusu</h2>
+      <button id="trashClose"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div id="trashList"></div>
   </div>
 </div>
 
@@ -621,8 +680,24 @@
   /* ---------------- storage ---------------- */
   const STORAGE_KEY = "notlarim_pro_v1";
   const load = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e){ return []; } };
-  const save = (list) => localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  const save = (list) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    if (window.__pushNotesToCloud) window.__pushNotesToCloud(list);
+  };
   let notes = load();
+
+  const TRASH_KEY = "notlarim_pro_trash_v1";
+  const TRASH_DAYS = 30;
+  const loadTrash = () => { try { return JSON.parse(localStorage.getItem(TRASH_KEY)) || []; } catch(e){ return []; } };
+  const saveTrash = (list) => localStorage.setItem(TRASH_KEY, JSON.stringify(list));
+  let trash = loadTrash();
+  function purgeOldTrash(){
+    const cutoff = Date.now() - TRASH_DAYS*24*60*60*1000;
+    const before = trash.length;
+    trash = trash.filter(t => (t.deletedAt||0) > cutoff);
+    if (trash.length !== before) saveTrash(trash);
+  }
+  purgeOldTrash();
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
   const dateKey = (d) => { const dt = new Date(d); return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"); };
@@ -740,7 +815,7 @@
     if (n.tekrar && n.tekrar !== "yok") badges.push(`<span class="badge">${REPEAT_LABEL[n.tekrar]}</span>`);
     if (n.etiket){
       n.etiket.split(",").map(t=>t.trim()).filter(Boolean).forEach(t=>{
-        badges.push(`<span class="badge">#${escapeHtml(t)}</span>`);
+        badges.push(`<button type="button" class="badge tag-badge" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`);
       });
     }
     const streak = computeStreak(n);
@@ -749,14 +824,19 @@
       const doneCount = n.altGorevler.filter(s=>s.done).length;
       badges.push(`<span class="subtask-progress">☑ ${doneCount}/${n.altGorevler.length}</span>`);
     }
+    const skippedToday = n.atlananlar && n.atlananlar.includes(todayKey());
+    if (skippedToday) badges.push(`<span class="skip-tag">⏭ Bugün atlandı</span>`);
     const prioColor = n.oncelik === 2 ? "var(--red)" : n.oncelik === 1 ? "var(--amber)" : "var(--paper-line)";
     const titleHtml = query ? highlightMatch(n.baslik, query) : escapeHtml(n.baslik);
     const contentHtml = n.icerik ? (query ? highlightMatch(n.icerik, query) : escapeHtml(n.icerik)) : "";
     const dragOn = sortMode === "elle" && !selectMode;
+    const showSkip = n.tekrar && n.tekrar !== "yok" && !n.tamamlandi && !skippedToday;
     return `
-      <div class="note ${n.tamamlandi?"done":""} ${n.sabit?"pinned":""}" style="--accent:${n.renk}" data-id="${n.id}" ${dragOn ? 'draggable="true"' : ""}>
+      <div class="note ${n.tamamlandi?"done":""} ${n.sabit?"pinned":""} ${skippedToday?"skipped-today":""}" style="--accent:${n.renk}" data-id="${n.id}" ${dragOn ? 'draggable="true"' : ""}>
         <div class="card-actions">
           ${dragOn ? '<span style="cursor:grab; padding:4px; opacity:.5;">⠿</span>' : ""}
+          ${showSkip ? `<button class="skip-btn" data-skip="${n.id}" title="Bugün atla"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>` : ""}
+          <button class="share-btn" data-share="${n.id}" title="Paylaş"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
           <button class="pin-btn ${n.sabit?"active":""}" data-pin="${n.id}" title="Sabitle"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></button>
           <button class="del-btn" data-del="${n.id}" title="Sil"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
         </div>
@@ -813,6 +893,47 @@
         const n = notes.find(x=>x.id===id);
         n.sabit = !n.sabit;
         save(notes); renderAll();
+      });
+    });
+    container.querySelectorAll("[data-skip]").forEach(el=>{
+      el.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const id = el.getAttribute("data-skip");
+        const n = notes.find(x=>x.id===id);
+        n.atlananlar = n.atlananlar || [];
+        const key = todayKey();
+        if (!n.atlananlar.includes(key)) n.atlananlar.push(key);
+        save(notes); renderAll();
+        toast("Bugün atlandı");
+      });
+    });
+    container.querySelectorAll("[data-share]").forEach(el=>{
+      el.addEventListener("click", async (e)=>{
+        e.stopPropagation();
+        const id = el.getAttribute("data-share");
+        const n = notes.find(x=>x.id===id);
+        if (!n) return;
+        const shareText = n.icerik ? `${n.baslik}\n${n.icerik}` : n.baslik;
+        if (navigator.share){
+          try { await navigator.share({title: n.baslik, text: shareText}); }
+          catch(err){ /* kullanıcı iptal etti */ }
+        } else if (navigator.clipboard){
+          try { await navigator.clipboard.writeText(shareText); toast("Panoya kopyalandı"); }
+          catch(err){ toast("Kopyalanamadı"); }
+        } else {
+          toast("Paylaşım desteklenmiyor");
+        }
+      });
+    });
+    container.querySelectorAll("[data-tag]").forEach(el=>{
+      el.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        if (selectMode) return;
+        const tag = el.getAttribute("data-tag");
+        document.querySelector('nav.tabs button[data-tab="search"]').click();
+        const input = document.getElementById("searchInput");
+        input.value = tag;
+        renderSearch();
       });
     });
     container.querySelectorAll("[data-open]").forEach(el=>{
@@ -895,9 +1016,14 @@
     const remaining = notes.filter(n=>!ids.includes(n.id));
     notes = remaining;
     save(notes);
+    const now = Date.now();
+    trash = trash.concat(removed.map(n=>({...n, deletedAt: now})));
+    saveTrash(trash);
     const count = removed.length;
     setSelectMode(false);
     toast(count + " not silindi", "Geri Al", ()=>{
+      trash = trash.filter(t=>!ids.includes(t.id));
+      saveTrash(trash);
       notes = notes.concat(removed);
       save(notes); renderAll();
     }, 4000);
@@ -1001,8 +1127,13 @@
     if (idx === -1) return;
     const removed = notes[idx];
     notes.splice(idx, 1);
-    save(notes); renderAll();
+    save(notes);
+    trash.push({...removed, deletedAt: Date.now()});
+    saveTrash(trash);
+    renderAll();
     toast("Not silindi", "Geri Al", ()=>{
+      trash = trash.filter(t=>t.id!==removed.id);
+      saveTrash(trash);
       notes.splice(idx, 0, removed);
       save(notes); renderAll();
     }, 4000);
@@ -1266,7 +1397,9 @@
   document.getElementById("settingsBtn").addEventListener("click", ()=>{
     refreshNotifSwitch();
     refreshFontSizeSel();
+    refreshThemeSel();
     renderWeekStats();
+    document.getElementById("trashCount").textContent = trash.length;
     settingsOverlay.classList.add("open");
   });
   document.getElementById("settingsClose").addEventListener("click", ()=> settingsOverlay.classList.remove("open"));
@@ -1291,6 +1424,80 @@
     });
   });
   applyFontSize(currentFontSize());
+
+  /* ---------------- theme ---------------- */
+  const THEME_KEY = "notlarim_pro_theme";
+  function currentTheme(){ return localStorage.getItem(THEME_KEY) || "system"; }
+  function applyTheme(pref){
+    if (pref === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", pref);
+  }
+  function refreshThemeSel(){
+    const cur = currentTheme();
+    document.querySelectorAll("#themeRow button").forEach(b=>{
+      b.classList.toggle("sel", b.getAttribute("data-theme") === cur);
+    });
+  }
+  document.querySelectorAll("#themeRow button").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      const pref = b.getAttribute("data-theme");
+      localStorage.setItem(THEME_KEY, pref);
+      applyTheme(pref);
+      refreshThemeSel();
+    });
+  });
+  applyTheme(currentTheme());
+
+  /* ---------------- trash ---------------- */
+  const trashOverlay = document.getElementById("trashOverlay");
+  function renderTrash(){
+    document.getElementById("trashCount").textContent = trash.length;
+    const el = document.getElementById("trashList");
+    if (!trash.length){
+      el.innerHTML = `<div class="empty"><span class="glyph">🗑</span>Çöp kutusu boş.</div>`;
+      return;
+    }
+    const sorted = trash.slice().sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0));
+    el.innerHTML = sorted.map(n=>{
+      const d = new Date(n.deletedAt);
+      const dateStr = d.toLocaleDateString("tr-TR", {day:"numeric", month:"short"});
+      return `<div class="trash-row" data-trash-id="${n.id}">
+        <div>
+          <div class="title">${escapeHtml(n.baslik)}</div>
+          <div class="meta">${dateStr} tarihinde silindi</div>
+        </div>
+        <button type="button" data-restore="${n.id}">Geri Yükle</button>
+        <button type="button" class="danger" data-purge="${n.id}">Kalıcı Sil</button>
+      </div>`;
+    }).join("");
+    el.querySelectorAll("[data-restore]").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        const id = b.getAttribute("data-restore");
+        const idx = trash.findIndex(t=>t.id===id);
+        if (idx === -1) return;
+        const [restored] = trash.splice(idx, 1);
+        delete restored.deletedAt;
+        notes.push(restored);
+        save(notes); saveTrash(trash);
+        renderTrash(); renderAll();
+        toast("Not geri yüklendi");
+      });
+    });
+    el.querySelectorAll("[data-purge]").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        const id = b.getAttribute("data-purge");
+        trash = trash.filter(t=>t.id!==id);
+        saveTrash(trash);
+        renderTrash();
+      });
+    });
+  }
+  document.getElementById("trashBtn").addEventListener("click", ()=>{
+    renderTrash();
+    trashOverlay.classList.add("open");
+  });
+  document.getElementById("trashClose").addEventListener("click", ()=> trashOverlay.classList.remove("open"));
+  trashOverlay.addEventListener("click", (e)=>{ if (e.target===trashOverlay) trashOverlay.classList.remove("open"); });
 
   /* ---------------- weekly stats ---------------- */
   function renderWeekStats(){
@@ -1345,9 +1552,11 @@
     } else if (perm === "denied"){
       notifStatusEl.textContent = "Bildirim izni reddedilmiş. Tarayıcı ayarlarından izin vermeniz gerekir.";
     } else if (perm === "granted" && notifPrefOn()){
-      notifStatusEl.textContent = "Bildirimler açık. Not zamanı geldiğinde, uygulama açık olduğu sürece bildirim gösterilir.";
+      notifStatusEl.textContent = window.__pushTokenRegistered
+        ? "Bildirimler açık. Uygulama kapalıyken de bildirim gelir (birkaç dakika gecikmeli olabilir)."
+        : "Bildirimler açık. Uygulama açıkken anında, kapalıyken arka plan kontrolü bağlanınca bildirim gelir.";
     } else {
-      notifStatusEl.textContent = "Kapalı sekmede veya uygulama tamamen kapalıyken bildirim gönderilemez — bu tarayıcı kısıtlaması, uygulamanın açık/arka planda olması gerekir.";
+      notifStatusEl.textContent = "Kapalıyken bildirim alabilmek için bu anahtarı açmanız gerekiyor.";
     }
   }
 
@@ -1362,6 +1571,7 @@
     if (perm === "granted"){
       localStorage.setItem(NOTIF_PREF_KEY, "1");
       toast("Bildirimler açıldı");
+      if (window.__requestPushToken) window.__requestPushToken().then(refreshNotifSwitch);
     } else {
       toast("İzin verilmedi");
     }
@@ -1378,6 +1588,7 @@
     const today = todayKey();
     notes.forEach(n=>{
       if (n.tamamlandi || !n.tarih) return;
+      if (n.atlananlar && n.atlananlar.includes(today)) return;
       const times = n.tekrar === "ozel" ? (n.ozelSaatler||[]) : (n.saat ? [n.saat] : []);
       if (!times.includes(hhmm)) return;
 
@@ -1452,7 +1663,17 @@
   updateOfflineBar();
 
   /* ---------------- init ---------------- */
+  window.__applyRemoteNotes = function(remoteList){
+    notes = remoteList;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    renderAll();
+  };
+
   renderAll();
+
+  if (notifPrefOn() && "Notification" in window && Notification.permission === "granted" && window.__requestPushToken){
+    window.__requestPushToken().then(refreshNotifSwitch);
+  }
 
   const params = new URLSearchParams(location.search);
   const sharedTitle = params.get("title");
@@ -1469,6 +1690,67 @@
     toast("Paylaşılan içerik nota eklendi");
   }
 })();
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyARTlJbJ-36gIHwR8FdaR-LcyaUR06Esn0",
+    authDomain: "notlarim-pro.firebaseapp.com",
+    projectId: "notlarim-pro",
+    storageBucket: "notlarim-pro.firebasestorage.app",
+    messagingSenderId: "67642380209",
+    appId: "1:67642380209:web:9eef6bf46d811929d5b790"
+  };
+  const VAPID_KEY = "BDKMi2u6KISkV4OiN4zNqrGE8r8BX18DfN1w0Y8dvMcr5ZT9RGTrCJHc0fBj6-svAgyvY9wNDxwTcC1uXKYfaXk";
+  const SYNC_ID = "onur-notlarim";
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const notesCol = collection(db, "users", SYNC_ID, "notes");
+
+  let remoteIds = new Set();
+  let applyingRemote = false;
+
+  onSnapshot(notesCol, (snapshot) => {
+    if (snapshot.metadata.hasPendingWrites) return; // kendi yazdığımız değişiklik, yoksay
+    const list = [];
+    snapshot.forEach((d) => { list.push(d.data()); remoteIds.add(d.id); });
+    applyingRemote = true;
+    if (window.__applyRemoteNotes) window.__applyRemoteNotes(list);
+    applyingRemote = false;
+  }, () => { /* bağlantı sorunu - sessizce yerel çalışmaya devam et */ });
+
+  window.__pushNotesToCloud = async function(list){
+    if (applyingRemote) return;
+    try{
+      const localIds = new Set(list.map(n=>n.id));
+      await Promise.all(list.map(n => setDoc(doc(notesCol, n.id), n)));
+      const toDelete = [...remoteIds].filter(id => !localIds.has(id));
+      await Promise.all(toDelete.map(id => deleteDoc(doc(notesCol, id))));
+      remoteIds = localIds;
+    }catch(e){ /* çevrimdışı olabilir, yerelde kayıtlı kalır */ }
+  };
+
+  window.__requestPushToken = async function(){
+    try{
+      const supported = await isSupported();
+      if (!supported) return;
+      const reg = await navigator.serviceWorker.ready;
+      const messaging = getMessaging(app);
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return;
+      await setDoc(doc(db, "users", SYNC_ID, "tokens", token), {
+        token, updatedAt: Date.now(), ua: navigator.userAgent.slice(0,120)
+      });
+      window.__pushTokenRegistered = true;
+    }catch(e){ /* izin yok ya da desteklenmiyor */ }
+  };
 </script>
 </body>
 </html>
