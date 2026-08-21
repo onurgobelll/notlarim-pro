@@ -29,6 +29,25 @@ function istanbulNow() {
   };
 }
 
+// Sunucu (GitHub Actions) UTC'de çalışıyor; notun tarihini Türkiye saatine göre
+// yorumlamak için bu yardımcıları kullanıyoruz (toISOString() UTC verir, yanlış gün üretir).
+function istanbulDateKey(date) {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit"
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(date).map(p => [p.type, p.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+function istanbulWeekday(date) {
+  const map = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Istanbul", weekday: "short" });
+  return map[fmt.format(date)];
+}
+function istanbulDay(date) {
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", day: "2-digit" });
+  return Number(fmt.format(date));
+}
+
 // Bildirim penceresi: cron her ~15 dakikada bir çalıştığı için, notun saatiyle
 // şu anki saat arasında birkaç dakikalık tolerans bırakıyoruz.
 function withinWindow(targetHHMM, nowHHMM, windowMinutes = 16) {
@@ -63,12 +82,13 @@ async function main() {
     const times = n.tekrar === "ozel" ? (n.ozelSaatler || []) : (n.saat ? [n.saat] : []);
     if (!times.length) continue;
 
-    const noteDateKey = new Date(n.tarih).toISOString().slice(0, 10);
+    const noteDateObj = new Date(n.tarih);
+    const noteDateKey = istanbulDateKey(noteDateObj);
     const isToday = noteDateKey === dateKey;
     const dayMatches =
       n.tekrar === "gunluk" ? true :
-      n.tekrar === "haftalik" ? new Date(n.tarih).getDay() === weekday :
-      n.tekrar === "aylik" ? new Date(n.tarih).getDate() === dayNum :
+      n.tekrar === "haftalik" ? istanbulWeekday(noteDateObj) === weekday :
+      n.tekrar === "aylik" ? istanbulDay(noteDateObj) === dayNum :
       n.tekrar === "ozel" ? isToday :
       isToday;
     if (!dayMatches) continue;
